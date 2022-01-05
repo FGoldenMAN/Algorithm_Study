@@ -1,0 +1,86 @@
+[题目链接：LeetCode_913.猫和老鼠](https://leetcode-cn.com/problems/cat-and-mouse/solution/)
+思路分析：
+这道题对于现在的我相当有难度，于是认真学习了题解。首先我研究了最简单的做法，也就是DFS+记忆化。
+
+1.题目的输入是与第i个节点链接的所有节点，鼠鼠和猫猫轮流行动（鼠鼠先跑），并且鼠鼠和猫猫的初始位置都确定，答案需要求得在每一步都是最优的情况下，最后是鼠鼠赢还是猫猫赢。
+
+2.对于当前行动者猫猫（或者鼠鼠），最好的情况永远都是自己赢，其次是平局，最次就是对方赢。
+
+3.那么最简单的思路就时使用DFS+记忆化，不断向下搜索。一旦遇到当前行动者自己赢了的分支就返回，并记录当前状态为当前行动者自己赢了。如果遇到了平局还得继续搜索，因为不确定接下来的分支有没有自己赢。搜索全部分支后，如果是平局就记录当前状态返回，如果连平局都不是，就记录当前状态为对方赢了再返回。
+
+4.值得一提的是，当猫猫和鼠鼠加起来的行动次数超过了总节点数的两倍时还未分出胜负，那么必然就是平局。因为哪怕此前每一次猫猫和鼠鼠都没有走重复的节点，此刻再下一步就必然走到重复的节点上。以猫猫为例。如果猫猫来到已经来过的节点，则鼠鼠要么前往**原本猫猫在这个节点时，自己所在的那个节点**，要么前往**更有利于自己获胜的位置**。前者是**循环**，也就是**平局**的分支，后者则是猫猫**更不可能赢**的分支——换做鼠鼠的话，也是同样。因此猫猫和鼠鼠**同样都更不可能赢**，最终也是导向了**平局**。
+
+```
+const int MOUSE_WIN = 1;
+const int CAT_WIN = 2;
+const int DRAW = 0;
+int n;
+vector<vector<int>> gr;
+vector<vector<vector<int>>> marks;
+class Solution {
+public:
+    int catMouseGame(vector<vector<int>>& graph) 
+    {   
+        gr=graph;
+        n=graph.size(); 
+        vector<vector<vector<int>>> mark(n,vector<vector<int>>(n,vector<int>(2*n,-1)));
+        marks=mark;
+        return dfs(2,1,0);//分别传入猫猫的初始位置，鼠鼠的初始位置，还有当前行动次数（0）。
+    }
+    int dfs(int catPos,int mousePos,int turns)
+    {
+        if (turns >= 2 * n)//如第四点，触发平局。
+            return DRAW;
+        if (marks[catPos][mousePos][turns] != -1) //此时的状态已经录入过了。
+            return marks[catPos][mousePos][turns];
+        if (mousePos == 0) //鼠鼠进洞，赢了。
+        { 
+            marks[catPos][mousePos][turns] = MOUSE_WIN;
+            return MOUSE_WIN;
+        }  
+        if (catPos == mousePos)//猫猫抓到鼠鼠，赢了。
+        {
+            return marks[catPos][mousePos][turns]=CAT_WIN;
+        } 
+        if (turns % 2 == 0)//偶数回，鼠鼠行动。
+        { 
+            int ans=CAT_WIN;//最坏是猫猫赢。
+            for(auto nextPos:gr[mousePos])//遍历此时鼠鼠可以去的点。
+            {   
+                int nextAns=dfs(catPos,nextPos,turns+1);
+                if(nextAns==MOUSE_WIN)
+                {
+                    marks[catPos][mousePos][turns]=MOUSE_WIN; 
+                    return MOUSE_WIN;//一旦鼠鼠赢就返回，因为这是最优选择了。
+                }
+                else if(nextAns==DRAW)
+                {
+                    ans=DRAW;
+                }
+            }
+            return marks[catPos][mousePos][turns]=ans;//检测完所有分支，检测到平局分支就录入平局，如果连平局都没有，那么就是猫猫赢。
+        }
+        else//猫猫行动。
+        {
+            int ans =MOUSE_WIN;
+            for (auto nextPos : gr[catPos]) 
+            {
+                if (nextPos != 0) //猫猫不能进洞。
+                {
+                    int nextAns = dfs(nextPos,mousePos,turns+1);
+                    if (nextAns == CAT_WIN) 
+                    {
+                        marks[catPos][mousePos][turns] = CAT_WIN;
+                        return CAT_WIN;//猫猫能赢就直接返回。
+                    }
+                    if (nextAns == DRAW) 
+                    {
+                        ans = DRAW;
+                    }
+                }
+            }
+            return marks[catPos][mousePos][turns] = ans;//检测完所有分支，检测到平局分支就录入平局，如果连平局都没有，那么就是鼠鼠赢。
+        }
+    }
+};
+```
